@@ -247,6 +247,10 @@ def plot_averaged_widths(prepeak=False):
     colourbar.ax.set_yticklabels(['1', '2', '3', '4'])
     fig.savefig(f"{file_location}AllAveWidths-vs-1+z-first{len(zs)}{suffix}.png", dpi=400, bbox_inches='tight')
     fig.savefig(f"{file_location}AllAveWidths-vs-1+z-first{len(zs)}{suffix}.pdf", dpi=400, bbox_inches='tight')
+    
+    # now print out the total dispersion about the best fit
+    errs = widths - (1 + zs)**best_fit
+    print("Dispersion in fit widths compared to best (1 + z)^b trend is:", np.std(errs))
 
 def plot_all_widths(prepeak=False):
     ''' Plots the width vs 1 + z data for all 4 bands on a 2x2 plot. 
@@ -364,7 +368,7 @@ def plot_dispersion_vs_scaling(band, method='power'):
     fig, ax = plt.subplots(figsize=(5, 4))
     ax.errorbar(bs, med_disps, yerr=std_disps, rasterized=True)
     ax.set_xlabel("$b$")
-    ax.set_ylabel("Normalised Dispersion")
+    ax.set_ylabel("Reference Flux Dispersion")
     ax.yaxis.set_minor_locator(AutoMinorLocator())
     ax.xaxis.set_minor_locator(AutoMinorLocator())
     fig.savefig(f'Images/DispersionScaling-{method}_{band}.png', dpi=400, bbox_inches='tight')
@@ -402,7 +406,7 @@ def plot_all_dispersion_vs_scaling():
     fig, ax = plt.subplots(figsize=(5, 4))
     ax.errorbar(bs, all_disps, yerr=all_std_disps, rasterized=True)
     ax.set_xlabel("$b$")
-    ax.set_ylabel("Normalised Dispersion")
+    ax.set_ylabel("Reference Flux Dispersion")
     ax.yaxis.set_minor_locator(AutoMinorLocator())
     ax.xaxis.set_minor_locator(AutoMinorLocator())
     fig.savefig('Images/DispersionScaling-power-'+''.join([band for band in bands])+'bands.png', dpi=400, bbox_inches='tight')
@@ -1047,7 +1051,7 @@ def main():
     compare_all_widths()    # good to compare all widths on the same figure!
     compare_all_widths(prepeak=True)
     
-    ## -- Now, plot the dispersion in the reference curves over all of the lightcurves for each method -- ##
+    # # -- Now, plot the dispersion in the reference curves over all of the lightcurves for each method -- ##
     # for method in ['power', 'linear']:
     #     plot_dispersion_vs_scaling(method=method)
     for band in ['g', 'r', 'i', 'z']:
