@@ -49,7 +49,7 @@ bandcolours = {"g": "tab:green", "r": "tab:orange",
 
 
 
-def plot_width_vs_z(fitband='z', average=False, secondband='i', prepeak=False):
+def plot_width_vs_z(fitband='z', average=False, secondband='i', prepeak=False, nonderedshifted=False):
     ''' Plots the width vs redshift for the z-band fit data. 
     Parameters
     ----------
@@ -61,7 +61,12 @@ def plot_width_vs_z(fitband='z', average=False, secondband='i', prepeak=False):
     prepeak : bool
         If true, will plot the fits that require pre-peak lightcurve data. 
     '''
-    suffix = "_PREPEAK" if prepeak else ""
+    if nonderedshifted:
+        suffix = "_non_deredshifted"
+    elif prepeak:
+        suffix = "_PREPEAK"
+    else:
+        suffix = ""
     file_location = "Images/Pre-peak Images/" if prepeak else "Images/"
     
     # load in data from our fit band
@@ -99,7 +104,7 @@ def plot_width_vs_z(fitband='z', average=False, secondband='i', prepeak=False):
     err = np.sqrt(np.diag(cov))[0]  # covariance matrix error
     print(f"b = {best_fit} \pm {err}")
     red_chisquare = sum([(((1 + zs[i])**best_fit - widths[i]) / werr[i])**2 for i in range(len(widths))]) / (len(widths) - 1)
-    print(f"fitband={fitband}, prepeak={prepeak}, reduced chi square = {red_chisquare:.3f}, averaged={average}, secondband={secondband}")
+    print(f"fitband={fitband}, prepeak={prepeak}, nonderedshifted={nonderedshifted}, reduced chi square = {red_chisquare:.3f}, averaged={average}, secondband={secondband}")
 
     # now calculate the binned data for visualisation purposes
     binX, binY, binYerr = Methods.bin_data(1 + zs, widths, yerr=werr, n=50)
@@ -252,18 +257,23 @@ def plot_averaged_widths(prepeak=False):
     errs = widths - (1 + zs)**best_fit
     print("Dispersion in fit widths compared to best (1 + z)^b trend is:", np.std(errs))
 
-def plot_all_widths(prepeak=False):
+def plot_all_widths(prepeak=False, nonderedshifted=False):
     ''' Plots the width vs 1 + z data for all 4 bands on a 2x2 plot. 
     Parameters
     ----------
     prepeak : bool
         If true, will plot the fits that require pre-peak lightcurve data. 
     '''
-    suffix = "_PREPEAK" if prepeak else ""
+    if nonderedshifted:
+        suffix = "_non_deredshifted"
+    elif prepeak:
+        suffix = "_PREPEAK"
+    else:
+        suffix = ""
     file_location = "Images/Pre-peak Images/" if prepeak else "Images/"
     ### for more in depth documentation, check out the plot_width_vs_z function above
     fig, axes = plt.subplots(nrows=2, ncols=2, sharex='col', sharey='row', gridspec_kw={'hspace':0, 'wspace':0},
-                             figsize=(10, 10))
+                             figsize=(10, 8))
     axes = axes.flatten()
     # 0 - top left, 1 - top right, 2 - bottom left, 3 - bottom right
     
@@ -295,9 +305,9 @@ def plot_all_widths(prepeak=False):
         
         # only need to create the complete axes (with labels) once, so have a check for this.
         if i == 0:
-            errlab = 'Data'; binlab = 'Binned Data'; expectlab = '$1+z$'
+            errlab = 'Data'; binlab = 'Binned Data'; expectlab = '$1+z$'; notimedillab = "No Time Dil"
         else:
-            errlab = ''; binlab = ''; expectlab = ''
+            errlab = ''; binlab = ''; expectlab = ''; notimedillab = ""
         axes[i].errorbar(1 + zs, widths, yerr=werr,
                     fmt='.', c='tab:gray', alpha=0.3, label=errlab, rasterized=True)
         axes[i].errorbar(binX, binY, yerr=binYerr, fmt='.', c='tab:red',
@@ -311,8 +321,14 @@ def plot_all_widths(prepeak=False):
         for sign in [1, -1]:
             axes[i].plot(line, power_1z(line, best_fit + sign * err),
                     c='tab:blue', ls=':', alpha=0.7)
-        axes[i].set_ylim(0.4, 4)
-        axes[i].set_xlim(1, 2.15)
+            
+        if nonderedshifted:
+            axes[i].plot(line, np.ones(len(line)), ls='--', c='k', label=notimedillab)
+            axes[i].set(xlim=(1, 2.15), ylim=(0.4, 2.1))
+            axes[i].text(2, 1.8, f'${band}$', fontsize=18)
+        else:
+            axes[i].set(xlim=(1, 2.15), ylim=(0.4, 3.5))
+            axes[i].text(2, 3.15, f'${band}$', fontsize=18)
         
         if i in [0, 1]:
             axes[i].tick_params(axis='x', which='both', direction="in", top=True)
@@ -329,8 +345,6 @@ def plot_all_widths(prepeak=False):
         axes[i].legend(loc='upper left')
         axes[i].yaxis.set_minor_locator(AutoMinorLocator())
         axes[i].xaxis.set_minor_locator(AutoMinorLocator())
-        
-        axes[i].text(2, 3.65, f'${band}$', fontsize=18)
     
     fig.savefig(f"{file_location}All-Widths-vs-1+z{suffix}.png", dpi=400, bbox_inches='tight')
     fig.savefig(f"{file_location}All-Widths-vs-1+z{suffix}.pdf", dpi=400, bbox_inches='tight')
@@ -546,7 +560,7 @@ def plot_lightcurve_bands(cid, z, save=True):
         sim /= max(sim)  # normalize the data
 
         ax.errorbar(tdata, data, yerr=data_err, fmt='.',
-                    color=bandcolours[band], label=f"{band}-band data")
+                    color=bandcolours[band], label=f"${band}$-band data")
         ax.plot(tsim, sim, c=bandcolours[band])
 
     ax.set(xlabel=r"Time Since Peak Brightness, $t - t_{\mathrm{peak}}$ (days)",
@@ -589,7 +603,7 @@ def plot_stretch(cid, z, fit_band, width_frac=1/16):
         band_center = DES_filters[band][0]
         
         upper, lower = (band_center * (1 + plot_z) + wiggle) / fit_band_center - 1, (band_center * (1 + plot_z) - wiggle) / fit_band_center - 1
-        axes[0].plot(plot_z, upper, c=bandcolours[band], label=f"{band} Band")
+        axes[0].plot(plot_z, upper, c=bandcolours[band], label=f"${band}$ Band")
         axes[0].plot(plot_z, lower, c=bandcolours[band])
         axes[0].fill_between(plot_z, upper, lower, color=bandcolours[band], alpha=0.2)
         
@@ -688,7 +702,7 @@ def plot_reference_creation(cid, z, fit_band):
             i1, i2 = run_total, run_total + running_index[j]    # get the lower and upper data indices for plotting
             if used_lab[bands[j]] == 0:     # if we havent used the label yet, lets use it!
                 lab_z = DES_filters[bands[j]][0] * (1 + z) / DES_filters[fit_band][0] - 1
-                lab = f"$z\sim {lab_z:.2f}$ ({bands[j]} band)"
+                lab = f"$z\sim {lab_z:.2f}$ (${bands[j]}$ band)"
                 used_lab[bands[j]] = 1
             else:
                 lab = ''
@@ -1027,16 +1041,239 @@ def plot_averaged_widths_vs_stretch(prepeak=False):
     fig.savefig(f"{file_location}AllAveWidths-vs-1+z-first{len(zs)}{suffix}-SALTStretch.pdf", dpi=400, bbox_inches='tight')
         
     
+    
+def stretch_vs_salt_stretch(prepeak=False):
+    ''' Plots the width vs redshift for the z-band fit data. 
+    Parameters
+    ----------
+    fitband : str
+    average : bool
+        If True, we'll plot the average of two bands of width data
+    secondband : str
+        If average == True, this is the second band that we'll use in the averaging. 
+    prepeak : bool
+        If true, will plot the fits that require pre-peak lightcurve data. 
+    '''
+    suffix = "_PREPEAK" if prepeak else ""
+    file_location = "Images/Pre-peak Images/" if prepeak else "Images/"
+    
+    # load in data from our fit band
+    with open(filenames['g'] + '_pickled_data' + suffix, 'rb') as file:
+        data1 = pickle.load(file)
+    with open(filenames['r'] + '_pickled_data' + suffix, 'rb') as file:
+        data2 = pickle.load(file)
+    with open(filenames['i'] + '_pickled_data' + suffix, 'rb') as file:
+        data3 = pickle.load(file)
+    with open(filenames['z'] + '_pickled_data' + suffix, 'rb') as file:
+        data4 = pickle.load(file)
+        
+    # cids1, cids2, cids3, cids4 = data1["CID"].to_numpy(), data2["CID"].to_numpy(), data3["CID"].to_numpy(), data4["CID"].to_numpy()
+    allSNe = {}
+    data_list = [data1, data2, data3, data4]
+    for i, data in enumerate(data_list):
+        for j, cid in enumerate(data["CID"].to_numpy()):
+            if cid not in allSNe:
+                if data["Width_err"][j] < data["Width"][j]:
+                    allSNe[cid] = [1, data["z"][j], data["Width"][j], data["Width_err"][j]**2]
+            else:
+                if data["Width_err"][j] < data["Width"][j]:
+                    allSNe[cid] = [allSNe[cid][0] + 1, data["z"][j], allSNe[cid][2] + data["Width"][j], allSNe[cid][3] + data["Width_err"][j]**2]
+    
+    widths = np.array([allSNe[cid][2] / allSNe[cid][0] for cid in allSNe])
+    zs = np.array([allSNe[cid][1] for cid in allSNe])
+    werr = np.array([np.sqrt(allSNe[cid][3]) / allSNe[cid][0] for cid in allSNe])
+    # colours = np.array([allSNe[cid][0] for cid in allSNe])
+    colours = np.array([Methods.sn.loc[Methods.sn['CID'] == cid]['x1'] for cid in allSNe])
+    colours = colours.flatten()
+    # print(colours)
+    
+    stretches = widths / (1 + zs)
+    stretches_err = werr / (1 + zs)
+    def salt_stretch(x1):
+        return 0.98 + 0.091 * x1 + 0.003 * x1**2 - 0.00075 * x1**3
+    SALT_stretches = salt_stretch(colours)
+    
+    fig, ax = plt.subplots()
+    
+    ax.errorbar(1 + zs, stretches - SALT_stretches, yerr=stretches_err, fmt='.', alpha=0.5)
+    ax.axhline(0, ls='--', c='k')
+    
+    def redshift_drift(z):
+        deltaz = 1 / ((1 + z)**-2.8 / 0.87 + 1)
+        return deltaz * 0.37 + (1 - deltaz) * (0.51 * 0.37 + (1 - 0.51) * -1.22)
+    
+    fig, ax = plt.subplots()
+    
+    ax.errorbar(1 + zs, stretches - salt_stretch(redshift_drift(zs)), yerr=stretches_err, fmt='.', alpha=0.5, c='tab:grey')
+    ax.axhline(0, ls='--', c='k')
+    
+def redshift_drift_plots():
+    '''Code written by Tamara, edited by me'''
+    
+    a=0.51
+    mu1=0.37
+    mu2=-1.22
+    sigma1=0.61
+    sigma2=0.56
+    K=0.87
+    
+    def stretch(x1):
+    	return 0.98 + 0.091*x1 + 0.003*x1**2 - 0.00075*x1**3
+    
+    def rect(x, y, w, h, c, ax):
+        polygon = plt.Rectangle((x,y),w,h,color=c)
+        ax.add_patch(polygon)
+    def rainbow_fill(X, Y, ax, cmap=plt.get_cmap("jet")):
+        ax.plot(X, Y, lw=0)  # Plot so the axes scale correctly
+        dx = X[1]-X[0]
+        N = float(X.size)
+        for n, (x,y) in enumerate(zip(X,Y)):
+            color = cmap(n/N)
+            rect(x, 1, dx, y-1, color, ax)
+    
+    #####################################################
+    # Test the stretch distribution of our data
+    #####################################################
+    #df = pd.read_csv('../data/data_for_DESI/good/hubble_diagram.txt', delim_whitespace=True,comment='#') #, names=['CID', 'IDSURVEY', 'zHD', 'zHEL', 'MU', 'MUERR', 'MUERR_VPEC', 'MUERR_SYS'])
+    df = pd.read_csv('DES-SN5YR_HD+MetaData.csv')
+    df.sort_values('zHD',inplace=True)
+    df=df[df['IDSURVEY']==10] # Just choose DES
+    x1dat=df['x1'].to_numpy()
+    zdat =df['zHD'].to_numpy()
+    mBdat=df['mB'].to_numpy()
+    cdat=df['c'].to_numpy()
+    fit1 = np.polyfit(zdat,x1dat,1)
+    print(fit1)
+    fig, ax = plt.subplots()
+    ax.scatter(zdat, x1dat, c=cdat, alpha=0.5, rasterized=True) 
+    ax.plot(zdat,fit1[0]*zdat+fit1[1],color='black',label='Best fit: $x_1={:.4f}z+{:.2f}$'.format(fit1[0],fit1[1]))
+    ax.set(xlabel='Redshift, $z$', ylabel='$x_1$')
+    ax.legend(frameon=False)
+    fig.savefig('Images/x1_vs_z_DES-SN5YR.png', bbox_inches='tight')
+    fig.savefig('Images/x1_vs_z_DES-SN5YR.pdf', bbox_inches='tight')
+    
+    sdat = stretch(x1dat)
+    fit2 = np.polyfit(zdat,sdat,1)
+    print(fit2)
+    fig, ax = plt.subplots()
+    ax.scatter(zdat, sdat, c=cdat, alpha=0.5) 
+    ax.plot(zdat, fit2[0]*zdat+fit2[1], color='k', label='Best fit: $s={:.4f}z+{:.2f}$'.format(fit2[0],fit2[1]))
+    ax.set(xlabel='Redshift, $z$', ylabel='Stretch')
+    ax.legend(frameon=False)
+    fig.savefig('Images/s_vs_z_DES-SN5YR.png', bbox_inches='tight')
+    fig.savefig('Images/s_vs_z_DES-SN5YR.pdf', bbox_inches='tight')
+    
+    ####################################################
+    # Choose which redshifts to use for the rest of the analysis
+    ####################################################
+    zs = np.arange(0,1.41,0.1)
+    x1s = np.arange(-3,3,0.1)
+    # zs = zdat
+    # x1s = x1dat
+    
+    #####################################################
+    ##### Investgating the populations and how x1 drifts.
+    #####################################################
+    fig, ax = plt.subplots()
+    norm1 = (1/(sigma1*np.sqrt(2*np.pi)))*np.exp((-(x1s-mu1)**2)/(2*sigma1**2))
+    norm2 = (1/(sigma2*np.sqrt(2*np.pi)))*np.exp((-(x1s-mu2)**2)/(2*sigma2**2))
+    #x1=mu1-np.sqrt(np.alog(norm)*(2*sigma1**2)) # Trying to create a gaussian about the mean.  Work in progress!
+    ax.plot(x1s, norm1, '--', label='main', color='k')
+    ax.plot(x1s, norm2, '-.', label='secondary', color='grey')
+    
+    X1_prob = np.zeros([len(zs),len(x1s)])
+    x1_mean = np.zeros(len(zs))
+    plt.get_cmap('rainbow')
+    x = np.linspace(0, 2*np.pi, len(zs))
+    colors = plt.cm.jet(np.linspace(0,1,len(zs)))
+    for i, z in enumerate(zs):	
+        delta=(1/K*(1+z)**(-2.8) +1)**(-1)	
+        X1_prob[i,:] = delta*norm1 + (1-delta)*(a*norm1 + (1-a)*norm2)
+        x1_mean[i] = np.sum(X1_prob[i,:]*x1s)/np.sum(X1_prob[i,:])
+    	# ax.plot(x1s, X1_prob[i,:], label='$z={:.1f}$'.format(z), color=colors[i])
+        ax.plot(x1s, X1_prob[i, :], color=colors[i])
+        ax.plot([x1_mean[i], x1_mean[i]], [0.0, 1.0], ':', color=colors[i])
+    ax.set(xlabel='$x_1$', ylabel='$x_1$ distribution', ylim=(0, 1))
+    ax.legend(frameon=False)
+    import matplotlib
+    zs = np.arange(0,1.41,0.001)
+    cmappable = matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(0, max(zs)), cmap='jet')
+    colourbar = fig.colorbar(cmappable, ax=ax, label='Redshift, $z$', pad=0, aspect=40)
+    fig.savefig('Images/x1drift.png', bbox_inches='tight')
+    fig.savefig('Images/x1drift.pdf', bbox_inches='tight')
+    
+    
+    X1_prob = np.zeros([len(zs),len(x1s)])
+    x1_mean = np.zeros(len(zs))
+    for i, z in enumerate(zs):	
+        delta=(1/K*(1+z)**(-2.8) +1)**(-1)	
+        X1_prob[i,:] = delta*norm1 + (1-delta)*(a*norm1 + (1-a)*norm2)
+        x1_mean[i] = np.sum(X1_prob[i,:]*x1s)/np.sum(X1_prob[i,:])
+    fig, ax = plt.subplots()
+    ax.plot(zs, x1_mean, '-')
+    ax.set(ylim=(-0.4,0.4), xlabel='Redshift, $z$', ylabel='Mean $x_1$', xscale='log')
+    fig.savefig('Images/x1drift_vs_z.png', bbox_inches='tight')
+    fig.savefig('Images/x1drift_vs_z.pdf', bbox_inches='tight')
+    
+    
+    #####################################################
+    # Convert x1 to stretch and plot
+    #####################################################
+    # X1 is easy to convert to stretch as there are published conversions. 
+    # Stretch is directly related to the width of the light curve 
+    # (an s=1.1 SN is 10% faster than an s=1 SN, etc.).
+    
+    s = stretch(x1_mean) #0.98 + 0.091*x1_mean + 0.003*x1_mean**2 - 0.00075*x1_mean**3
+    fig, ax = plt.subplots(figsize=(6.4,2))
+    rainbow_fill(zs, s, ax)
+    ax.plot(zs, s, '-', color='k', linewidth=2)
+    ax.set(xlabel='Redshift, $z$', ylabel='Mean Stretch')
+    fig.savefig('Images/x1drift-stretch_drift_vs_z.png', bbox_inches='tight')
+    fig.savefig('Images/x1drift-stretch_drift_vs_z.pdf', bbox_inches='tight')
+    
+    # The magnitude (and thus the distance modulus) 
+    # are related to x1 by the term $\Delta m = \alpha x_1$.  
+    # See Eq. 1 of key paper.  alpha = 0.161 # ± 0.001
+    
+    ######################################################
+    # Now let's mock that up and see what the slope is. 
+    ######################################################
+    timedil = 1+zs
+    timedil_drift = (1+zs)*s #+(1-s[0])
+    fit = np.polyfit(1+zs,timedil_drift,1)
+    bs=np.arange(0.98,1.02,0.001)
+    chi2 =  np.zeros(len(bs))
+    uncert= 0.14 #arbirtrary uncertainty designed to make chi2~1
+    for i,b in enumerate(bs):
+    	timdil_theory = (1+zs)**b
+    	chi2[i] = np.sum((timedil_drift-timdil_theory)**2/uncert**2)
+    	print(i,chi2[i])
+    ibest = np.argmin(chi2)
+    bbest = bs[ibest]
+    print(ibest,bbest)
+    fig, ax = plt.subplots()
+    ax.plot(1+zs, timedil, '-', label='Time dilation only: $\Delta t=(1+z)$')
+    #ax.plot(1+zs,timedil_drift,':',label='with stretch drift: td$={:.2f}(1+z) +{:.2f}$ or td$=(1+z)^{:.4f}$'.format(fit[0],fit[1],bbest))
+    ax.plot(1+zs, timedil_drift, '--', label='With stretch drift: $\Delta t \sim (1+z)^{{{:.3f}}}$'.format(bbest)) # WARNING HARDCODED RESULT
+    
+    ax.legend(frameon=False)
+    ax.set(xlabel='(1+z)', ylabel='Light Curve Width, $w$')
+    fig.savefig('Images/x1drift-td.png',bbox_inches='tight')
+    fig.savefig('Images/x1drift-td.pdf',bbox_inches='tight')
+    
+    
 
 def main():
     ## --- First, plot the width vs redshift for all bands --- ##
     for band in ['g', 'r', 'i', 'z']:
         plot_width_vs_z(band)
         plot_width_vs_z(band, prepeak=True) # now plot it again for the required prepeak data case
+        plot_width_vs_z(band, nonderedshifted=True) # now plot it again for the nonderedshifted data
     
-    ## --- Also good to plot all of the widths on the same figure --- ##
+    # ## --- Also good to plot all of the widths on the same figure --- ##
     plot_all_widths()
     plot_all_widths(prepeak=True)
+    plot_all_widths(nonderedshifted=True)
     
     ## -- Now, plot the average of the z band and i band data against (1 + z) -- ##
     plot_width_vs_z('z', average=True, secondband='i')
@@ -1106,6 +1343,9 @@ def main():
     plot_binpop_vs_binwidth(N=20)
     
     plot_averaged_widths_vs_stretch(prepeak=False)
+    
+    stretch_vs_salt_stretch()
+    redshift_drift_plots()
 
 
 if __name__ == "__main__":
