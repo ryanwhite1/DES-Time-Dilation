@@ -4,7 +4,7 @@ Our best cosmological models predict that as a consequence of the expansion of t
 
 ![timedilation](/Images/AllAveWidths-vs-1+z-first1504.png)
 
-This repository is intended only as a public record of _all_ of the code used in the project, and for the generation and storage of the figures in the paper (as well as for those that didn't make the cut!). The data used in the code is not in this repository (see Sanchez et al 2024). 
+This repository is intended only as a public record of _all_ of the code used in the project, and for the generation and storage of the figures in the paper (as well as for those that didn't make the cut!). The data used in the code is not in this repository (see Sanchez et al 2024 and the [associated GitHub repository for the data release paper](https://github.com/des-science/DES-SN5YR)). 
 ## Code
  - The `Methods.py` file contains some useful functions that are used throughout other plotting/data operations.
  - The `StretchMethod.py` file is where the widths are calculated and saved (pickled).
