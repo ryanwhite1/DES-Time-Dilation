@@ -19,13 +19,9 @@ import StretchMethod
 def modified_linear(x, b):
     '''Modified linear model, with free gradient but enforced y intercept of y=1 with x=1=(1+z)'''
     return b * (x - 1) + 1
-
-
 def power_1z(x, b):
     '''Power model, for x=(1 + z), with a free power parameter'''
     return x**b
-
-
 def linear_model(x, m, c):
     '''Basic linear model with free gradient and intercept'''
     return m * x + c
@@ -211,7 +207,16 @@ def plot_averaged_widths(prepeak=False):
     err = np.sqrt(np.diag(cov))[0]  # covariance matrix error
     print(f"b = {best_fit} \pm {err}")
     red_chisquare = sum([(((1 + zs[i])**best_fit - widths[i]) / werr[i])**2 for i in range(len(widths))]) / (len(widths) - 1)
-    print(f"all band average, prepeak={prepeak}, reduced chi square = {red_chisquare:.3f}")
+    print(f"all band average, prepeak={prepeak}, reduced chi square = {red_chisquare:.4f}")
+    
+    # find the best fit (chi square minimisation by default) of the width vs 1+z curve (assuming a linear case)
+    lin_best_fit, lin_cov = opt.curve_fit(linear_model, 1 + zs, widths, p0=(1, 0),
+                                  sigma=werr, absolute_sigma=True)
+    lin_m, lin_c = lin_best_fit
+    lin_m_err, lin_c_err = np.sqrt(np.diag(lin_cov))  # covariance matrix error
+    print(f"w = ({lin_m:.4f} \pm {lin_m_err:.4f}) * (1 + z) + ({lin_c:.4f} \pm {lin_c_err:.4f})")
+    lin_red_chisquare = sum([((lin_m * (1 + zs[i]) + lin_c - widths[i]) / werr[i])**2 for i in range(len(widths))]) / (len(widths) - 1)
+    print(f"all band average, prepeak={prepeak}, LINEAR reduced chi square = {lin_red_chisquare:.4f}")
 
     
     # now calculate the binned data for visualisation purposes
@@ -1108,8 +1113,8 @@ def stretch_vs_salt_stretch(prepeak=False):
     ax.axhline(0, ls='--', c='k')
     
 def redshift_drift_plots():
-    '''Code written by Tamara, edited by me'''
-    
+    '''Code written by Tamara, edited by Ryan'''
+    import matplotlib
     a=0.51
     mu1=0.37
     mu2=-1.22
@@ -1144,22 +1149,30 @@ def redshift_drift_plots():
     cdat=df['c'].to_numpy()
     fit1 = np.polyfit(zdat,x1dat,1)
     print(fit1)
-    fig, ax = plt.subplots()
-    ax.scatter(zdat, x1dat, c=cdat, alpha=0.5, rasterized=True) 
+    
+    scatter_s = 5
+    fig, ax = plt.subplots(figsize=(5, 2.5))
+    ax.scatter(zdat, x1dat, c=cdat, alpha=0.8, s=scatter_s, rasterized=True, cmap='viridis_r') 
     ax.plot(zdat,fit1[0]*zdat+fit1[1],color='black',label='Best fit: $x_1={:.4f}z+{:.2f}$'.format(fit1[0],fit1[1]))
     ax.set(xlabel='Redshift, $z$', ylabel='$x_1$')
-    ax.legend(frameon=False)
+    # ax.legend(frameon=False)
+    ax.legend(framealpha=0.3)
+    cmappable = matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(min(cdat), max(cdat)), cmap='viridis_r')
+    colourbar = fig.colorbar(cmappable, ax=ax, label='SN Colour', pad=0, aspect=30)
     fig.savefig('Images/x1_vs_z_DES-SN5YR.png', bbox_inches='tight')
     fig.savefig('Images/x1_vs_z_DES-SN5YR.pdf', bbox_inches='tight')
     
     sdat = stretch(x1dat)
     fit2 = np.polyfit(zdat,sdat,1)
     print(fit2)
-    fig, ax = plt.subplots()
-    ax.scatter(zdat, sdat, c=cdat, alpha=0.5) 
+    fig, ax = plt.subplots(figsize=(5, 2.5))
+    ax.scatter(zdat, sdat, c=cdat, alpha=0.8, s=scatter_s, rasterized=True, cmap='viridis_r') 
     ax.plot(zdat, fit2[0]*zdat+fit2[1], color='k', label='Best fit: $s={:.4f}z+{:.2f}$'.format(fit2[0],fit2[1]))
     ax.set(xlabel='Redshift, $z$', ylabel='Stretch')
-    ax.legend(frameon=False)
+    # ax.legend(frameon=False)
+    ax.legend(framealpha=0.3)
+    cmappable = matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(min(cdat), max(cdat)), cmap='viridis_r')
+    colourbar = fig.colorbar(cmappable, ax=ax, label='SN Colour', pad=0, aspect=30)
     fig.savefig('Images/s_vs_z_DES-SN5YR.png', bbox_inches='tight')
     fig.savefig('Images/s_vs_z_DES-SN5YR.pdf', bbox_inches='tight')
     
@@ -1174,7 +1187,7 @@ def redshift_drift_plots():
     #####################################################
     ##### Investgating the populations and how x1 drifts.
     #####################################################
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(5, 4))
     norm1 = (1/(sigma1*np.sqrt(2*np.pi)))*np.exp((-(x1s-mu1)**2)/(2*sigma1**2))
     norm2 = (1/(sigma2*np.sqrt(2*np.pi)))*np.exp((-(x1s-mu2)**2)/(2*sigma2**2))
     #x1=mu1-np.sqrt(np.alog(norm)*(2*sigma1**2)) # Trying to create a gaussian about the mean.  Work in progress!
@@ -1195,7 +1208,7 @@ def redshift_drift_plots():
         ax.plot([x1_mean[i], x1_mean[i]], [0.0, 1.0], ':', color=colors[i])
     ax.set(xlabel='$x_1$', ylabel='$x_1$ distribution', ylim=(0, 1))
     ax.legend(frameon=False)
-    import matplotlib
+    
     zs = np.arange(0,1.41,0.001)
     cmappable = matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(0, max(zs)), cmap='jet')
     colourbar = fig.colorbar(cmappable, ax=ax, label='Redshift, $z$', pad=0, aspect=40)
@@ -1224,7 +1237,7 @@ def redshift_drift_plots():
     # (an s=1.1 SN is 10% faster than an s=1 SN, etc.).
     
     s = stretch(x1_mean) #0.98 + 0.091*x1_mean + 0.003*x1_mean**2 - 0.00075*x1_mean**3
-    fig, ax = plt.subplots(figsize=(6.4,2))
+    fig, ax = plt.subplots(figsize=(5, 1.56))
     rainbow_fill(zs, s, ax)
     ax.plot(zs, s, '-', color='k', linewidth=2)
     ax.set(xlabel='Redshift, $z$', ylabel='Mean Stretch')
@@ -1251,10 +1264,12 @@ def redshift_drift_plots():
     ibest = np.argmin(chi2)
     bbest = bs[ibest]
     print(ibest,bbest)
-    fig, ax = plt.subplots()
-    ax.plot(1+zs, timedil, '-', label='Time dilation only: $\Delta t=(1+z)$')
+    fig, ax = plt.subplots(figsize=(5, 4))
+    ax.plot(1+zs, timedil, ':', c='tab:blue', label='Time dilation only: $\Delta t=(1+z)$')
+    ax.plot(1+zs, 1.03 * (1 + zs) - 0.05, '--', c='tab:red', label='with stretch drift: $\Delta t=1.03(1+z)-0.05$') ## HARDCODED
+    ax.plot(1+zs, np.ones(len(zs)), '-', c='k', label='no time dilation: $\Delta t = 0$')
     #ax.plot(1+zs,timedil_drift,':',label='with stretch drift: td$={:.2f}(1+z) +{:.2f}$ or td$=(1+z)^{:.4f}$'.format(fit[0],fit[1],bbest))
-    ax.plot(1+zs, timedil_drift, '--', label='With stretch drift: $\Delta t \sim (1+z)^{{{:.3f}}}$'.format(bbest)) # WARNING HARDCODED RESULT
+    # ax.plot(1+zs, timedil_drift, '--', label='With stretch drift: $\Delta t \sim (1+z)^{{{:.3f}}}$'.format(bbest)) # WARNING HARDCODED RESULT
     
     ax.legend(frameon=False)
     ax.set(xlabel='(1+z)', ylabel='Light Curve Width, $w$')
