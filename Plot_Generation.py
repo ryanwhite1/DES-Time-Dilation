@@ -810,12 +810,12 @@ def plot_2001V_spec():
             DESr = DECam_data[:, 2]
             DESi = DECam_data[:, 3]
             DESz = DECam_data[:, 4]
-            ax.plot(DESwavelengths, DESg, c='tab:green', label='DES $g$')
-            ax.fill_between(DESwavelengths, DESg, np.zeros(len(DESwavelengths)), color='tab:green', alpha=alpha)
-            ax.plot(DESwavelengths, DESr, c='tab:orange', label='DES $r$')
-            ax.fill_between(DESwavelengths, DESr, np.zeros(len(DESwavelengths)), color='tab:orange', alpha=alpha)
-            ax.plot(DESwavelengths, DESi, c='tab:red', label='DES $i$')
-            ax.fill_between(DESwavelengths, DESi, np.zeros(len(DESwavelengths)), color='tab:red', alpha=alpha)
+            ax.plot(DESwavelengths, DESg, c='tab:green', label='DES $g$', rasterized=True)
+            ax.fill_between(DESwavelengths, DESg, np.zeros(len(DESwavelengths)), color='tab:green', alpha=alpha, rasterized=True)
+            ax.plot(DESwavelengths, DESr, c='tab:orange', label='DES $r$', rasterized=True)
+            ax.fill_between(DESwavelengths, DESr, np.zeros(len(DESwavelengths)), color='tab:orange', alpha=alpha, rasterized=True)
+            ax.plot(DESwavelengths, DESi, c='tab:red', label='DES $i$', rasterized=True)
+            ax.fill_between(DESwavelengths, DESi, np.zeros(len(DESwavelengths)), color='tab:red', alpha=alpha, rasterized=True)
             # ax.plot(DESwavelengths, DESz, c='tab:purple')
             # ax.fill_between(DESwavelengths, DESz, np.zeros(len(DESwavelengths)), color='tab:purple', alpha=alpha)
         else:
@@ -823,10 +823,10 @@ def plot_2001V_spec():
                 positions = [DES_filters[band][0] + i * DES_filters[band][1] / 2 for i in [1, -1]]
                 for p in positions:
                     ax.axvline(p, c=bandcolours[band])
-                ax.fill_between(positions, np.ones(2), np.zeros(2), color=bandcolours[band], alpha=alpha, label=f'DES {band}')
+                ax.fill_between(positions, np.ones(2), np.zeros(2), color=bandcolours[band], alpha=alpha, label=f'DES {band}', rasterized=True)
         
-        ax.plot(wavelengths[::every], intensity[::every], lw=1, c='k', label='$z = z_1$')
-        ax.plot(wavelengths[::every] + 170, intensity[::every], lw=1, c='k', ls='--', label='$z = z_2$')
+        ax.plot(wavelengths[::every], intensity[::every], lw=1, c='k', label='$z = z_1$', rasterized=True)
+        ax.plot(wavelengths[::every] + 170, intensity[::every], lw=1, c='k', ls='--', label='$z = z_2$', rasterized=True)
         ax.set(xlabel='Wavelength (nm)', ylabel='Relative Transmittance/Intensity', xlim=[380, 870], ylim=[0, 1])
         ax.legend(loc='upper right')
         filename = "Images/SpectrumDESTransmittance" if filterresponse else "Images/SpectrumSimple"
@@ -1165,14 +1165,17 @@ def redshift_drift_plots():
     sdat = stretch(x1dat)
     fit2 = np.polyfit(zdat,sdat,1)
     print(fit2)
-    fig, ax = plt.subplots(figsize=(5, 2.5))
+    fig, ax = plt.subplots(figsize=(5.5, 3))
+    ax2 = ax.twinx()
     ax.scatter(zdat, sdat, c=cdat, alpha=0.8, s=scatter_s, rasterized=True, cmap='viridis_r') 
     ax.plot(zdat, fit2[0]*zdat+fit2[1], color='k', label='Best fit: $s={:.4f}z+{:.2f}$'.format(fit2[0],fit2[1]))
+    ax2.scatter(zdat, x1dat, alpha=0, rasterized=True) 
+    ax2.yaxis.set_tick_params(labelsize=9)
     ax.set(xlabel='Redshift, $z$', ylabel='Stretch')
     # ax.legend(frameon=False)
     ax.legend(framealpha=0.3)
     cmappable = matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(min(cdat), max(cdat)), cmap='viridis_r')
-    colourbar = fig.colorbar(cmappable, ax=ax, label='SN Colour', pad=0, aspect=30)
+    colourbar = fig.colorbar(cmappable, ax=ax, label='SN Colour', aspect=30, pad=0.08)
     fig.savefig('Images/s_vs_z_DES-SN5YR.png', bbox_inches='tight')
     fig.savefig('Images/s_vs_z_DES-SN5YR.pdf', bbox_inches='tight')
     
@@ -1272,10 +1275,32 @@ def redshift_drift_plots():
     # ax.plot(1+zs, timedil_drift, '--', label='With stretch drift: $\Delta t \sim (1+z)^{{{:.3f}}}$'.format(bbest)) # WARNING HARDCODED RESULT
     
     ax.legend(frameon=False)
-    ax.set(xlabel='(1+z)', ylabel='Light Curve Width, $w$')
+    ax.set(xlabel='$1+z$', ylabel='Light Curve Width, $w$')
     fig.savefig('Images/x1drift-td.png',bbox_inches='tight')
     fig.savefig('Images/x1drift-td.pdf',bbox_inches='tight')
     
+def lightcurve_stretch_vs_z(band='i'):
+    import matplotlib
+    fig, ax = plt.subplots(figsize=(8, 6))
+    Zs = Methods.Zs
+    cmap = matplotlib.cm.get_cmap('plasma', len(Zs))
+    cmappable = matplotlib.cm.ScalarMappable(norm=matplotlib.colors.Normalize(min(Zs), max(Zs)), cmap='plasma')
+    
+    
+    
+    for i, cid in enumerate(Methods.CIDs):
+        try:
+            t, data, _ = Methods.get_SN_data(cid, band)
+            tsim, sim, _ = Methods.get_SN_sim(cid, band)
+            ax.scatter(t, data / max(sim), color=cmap(Zs[i] / max(Zs)), s=1)
+            ax.plot(tsim, sim / max(sim), color=cmap(Zs[i] / max(Zs)), alpha=0.5)
+        except:
+            continue
+            
+    colourbar = fig.colorbar(cmappable, ax=ax, label='Redshift $z$', pad=0, aspect=30)
+    ax.set(xlabel=r'Time Since Peak Brightness, $t - t_{peak}$ (days)', ylabel='Normalised Flux', ylim=(-0.2, 1.2), xlim=(-40, 100))
+    ax.grid()
+    fig.savefig(f'Images/Lightcurves_vs_Redshift_{band}band.png', dpi=400, bbox_inches='tight')
     
 
 def main():
@@ -1359,8 +1384,11 @@ def main():
     
     plot_averaged_widths_vs_stretch(prepeak=False)
     
-    stretch_vs_salt_stretch()
+    # stretch_vs_salt_stretch()
     redshift_drift_plots()
+    
+    for band in ['g', 'r', 'i', 'z']:
+        lightcurve_stretch_vs_z(band=band)
 
 
 if __name__ == "__main__":
